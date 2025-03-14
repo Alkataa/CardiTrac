@@ -75,9 +75,13 @@ public class BluetoothForegroundService extends Service {
 
     private void saveHeartbeat(String data) {
         long timestamp = System.currentTimeMillis();
-        Log.d("BluetoothService", "Heartbeat: " + data + " at " + timestamp);
-        // You can save this data in SharedPreferences, SQLite, or a file
+        String message = "Ricevuto: " + data + " a " + timestamp + "\n";
+
+        Intent intent = new Intent("BluetoothDataUpdate");
+        intent.putExtra("data", message);
+        sendBroadcast(intent);
     }
+
 
 
     @Nullable
@@ -101,17 +105,39 @@ public class BluetoothForegroundService extends Service {
         }
     }
 
+    private void broadcastReceivedData(String data) {
+        Intent intent = new Intent("com.example.s.BLUETOOTH_DATA");
+        intent.putExtra("DATA", data);
+        sendBroadcast(intent);
+    }
+
     private void listenForData() {
+        StringBuilder messageBuffer = new StringBuilder();
         byte[] buffer = new byte[1024];
         int bytes;
+
         while (true) {
             try {
                 bytes = inputStream.read(buffer);
-                String receivedData = new String(buffer, 0, bytes).trim();
-                if ("0".equals(receivedData)) {
-                    sendAlertNotification();
-                } else {
-                    saveHeartbeat(receivedData);
+                String receivedData = new String(buffer, 0, bytes);
+
+                for (char c : receivedData.toCharArray()) {
+                    if (c == '\n') { // Detect newline character
+                        String fullMessage = messageBuffer.toString().trim();
+                        Log.d("BluetoothService", "Received: " + fullMessage);
+
+                        broadcastReceivedData(fullMessage); // Send data to MainActivity
+
+//                        if ("0".equals(fullMessage)) {
+//                            sendAlertNotification();
+//                        } else {
+//                            saveHeartbeat(fullMessage);
+//                        }
+
+                        messageBuffer.setLength(0); // Clear buffer for next message
+                    } else {
+                        messageBuffer.append(c);
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
