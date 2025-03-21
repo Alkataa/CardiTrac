@@ -36,12 +36,19 @@ public class MainActivity extends ComponentActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {  // Android 12+
+            requestPermissions(new String[]{
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.FOREGROUND_SERVICE
+            }, 1);
+        }
+
         receivedDataTextView = findViewById(R.id.received_data);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         listView = findViewById(R.id.device_list);
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
         pairedDevicesList.addAll(pairedDevices);
-
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
             BluetoothDevice selectedDevice = pairedDevicesList.get(position);
@@ -50,13 +57,20 @@ public class MainActivity extends ComponentActivity {
         });
 
         IntentFilter filter = new IntentFilter("com.example.s.BLUETOOTH_DATA");
-        registerReceiver(bluetoothDataReceiver, filter);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) // Android 13+
+            registerReceiver(bluetoothDataReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        else
+            registerReceiver(bluetoothDataReceiver, filter);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unregisterReceiver(bluetoothDataReceiver);
+        try {
+            unregisterReceiver(bluetoothDataReceiver);
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace(); // Receiver not registered
+        }
     }
 
     private final BroadcastReceiver bluetoothDataReceiver = new BroadcastReceiver() {
