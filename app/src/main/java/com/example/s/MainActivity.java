@@ -40,6 +40,9 @@ public class MainActivity extends ComponentActivity {
 
     private StringBuilder dataBuffer = new StringBuilder(); // Store received messages
 
+    private static final long updateDelayMs = 1000; // Delay in milliseconds (e.g., 1 second)
+    private long lastUpdateTime = 0;
+
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     @Override
@@ -67,14 +70,31 @@ public class MainActivity extends ComponentActivity {
             deviceNamesList.add(device.getName() + "\n" + device.getAddress());
         }
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, deviceNamesList);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1);
         listView.setAdapter(adapter);
+        pairedDevicesList.clear();
+
+        for (BluetoothDevice device : pairedDevices) {
+            String deviceInfo = device.getName() + " (" + device.getAddress() + ")";
+            adapter.add(deviceInfo);
+            pairedDevicesList.add(device);  // Ensure this matches ListView items
+        }
+        adapter.notifyDataSetChanged();
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
             BluetoothDevice selectedDevice = pairedDevicesList.get(position);
-            saveLastDevice(selectedDevice.getAddress());
-            startBluetoothService(selectedDevice.getAddress());
+            if (selectedDevice != null) {
+                String deviceInfo = "Connected to: " + selectedDevice.getName();
+                receivedDataTextView.setText(deviceInfo);  // Update UI to show connection
+
+                dataBuffer.setLength(0); // Clear previous data
+                receivedDataTextView.append("\nWaiting for data...");
+
+                saveLastDevice(selectedDevice.getAddress());
+                startBluetoothService(selectedDevice.getAddress());
+            }
         });
+
 
         IntentFilter filter = new IntentFilter("com.example.s.BLUETOOTH_DATA");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) // Android 13+
@@ -163,10 +183,23 @@ public class MainActivity extends ComponentActivity {
     private final BroadcastReceiver bluetoothDataReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            String newData = intent.getStringExtra("data");
+            String newData = intent.getStringExtra("DATA");
+
             if (newData != null) {
-                dataBuffer.append(newData); // Append new data
-                receivedDataTextView.setText(dataBuffer.toString()); // Update UI
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastUpdateTime >= updateDelayMs) {
+                    dataBuffer.append(newData).append("\n");
+
+                    // Log data for debugging
+                    Log.d("BluetoothDataReceiver", "Received Data: " + newData);
+
+                    // Ensure UI update runs on main thread
+                    runOnUiThread(() -> receivedDataTextView.setText(dataBuffer.toString()));
+
+                    lastUpdateTime = currentTime;
+                }
+            } else {
+                Log.e("BluetoothDataReceiver", "Received null data!");
             }
         }
     };
