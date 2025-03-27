@@ -33,7 +33,15 @@ public class BluetoothForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        Log.d("BluetoothService", "Service started!");
         deviceAddress = intent.getStringExtra("DEVICE_ADDRESS");
+
+        if (deviceAddress == null) {
+            Log.e("BluetoothService", "No device address provided. Stopping service.");
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
         startForeground(1, createNotification());
         new Thread(this::connectToDevice).start();
         return START_STICKY;
@@ -94,24 +102,42 @@ public class BluetoothForegroundService extends Service {
     private void connectToDevice() {
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
+
         try {
-            bluetoothSocket = device.createRfcommSocketToServiceRecord(SPP_UUID);
+            // Attempt standard connection
+            bluetoothSocket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
             bluetoothSocket.connect();
             inputStream = bluetoothSocket.getInputStream();
             listenForData();
         } catch (IOException e) {
-            e.printStackTrace();
-            stopSelf();
+            Log.e("BluetoothService", "Standard method failed, trying fallback...", e);
+            try {
+                // Use reflection to access hidden method
+                bluetoothSocket = (BluetoothSocket) device.getClass()
+                        .getMethod("createRfcommSocket", int.class)
+                        .invoke(device, 1); // Port 1 is usually used for RFCOMM
+
+                bluetoothSocket.connect();
+                inputStream = bluetoothSocket.getInputStream();
+                listenForData();
+            } catch (Exception fallbackException) {
+                Log.e("BluetoothService", "Fallback method also failed!", fallbackException);
+                stopSelf(); // Stop service if connection fails
+            }
         }
     }
 
+
     private void broadcastReceivedData(String data) {
         Intent intent = new Intent("com.example.s.BLUETOOTH_DATA");
-        intent.putExtra("DATA", data);
+        intent.putExtra("DATA", data); // Use lowercase key: "data"
         sendBroadcast(intent);
     }
 
+
     private void listenForData() {
+        Log.d("BluetoothService", "Listening for data...");
+
         StringBuilder messageBuffer = new StringBuilder();
         byte[] buffer = new byte[1024];
         int bytes;
@@ -119,30 +145,27 @@ public class BluetoothForegroundService extends Service {
         while (true) {
             try {
                 bytes = inputStream.read(buffer);
-                String receivedData = new String(buffer, 0, bytes);
+                if (bytes > 0) {
+                    String receivedData = new String(buffer, 0, bytes);
+                    Log.d("BluetoothService", "Raw Data: " + receivedData);
 
-                for (char c : receivedData.toCharArray()) {
-                    if (c == '\n') { // Detect newline character
-                        String fullMessage = messageBuffer.toString().trim();
-                        Log.d("BluetoothService", "Received: " + fullMessage);
+                    for (char c : receivedData.toCharArray()) {
+                        if (c == '\n') {
+                            String fullMessage = messageBuffer.toString().trim();
+                            Log.d("BluetoothService", "Complete Message: " + fullMessage);
 
-                        broadcastReceivedData(fullMessage); // Send data to MainActivity
-
-//                        if ("0".equals(fullMessage)) {
-//                            sendAlertNotification();
-//                        } else {
-//                            saveHeartbeat(fullMessage);
-//                        }
-
-                        messageBuffer.setLength(0); // Clear buffer for next message
-                    } else {
-                        messageBuffer.append(c);
+                            broadcastReceivedData(fullMessage);
+                            messageBuffer.setLength(0);
+                        } else {
+                            messageBuffer.append(c);
+                        }
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e("BluetoothService", "Error reading data!", e);
                 break;
             }
         }
     }
+
 }

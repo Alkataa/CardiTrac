@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">s</string>
+    <string name="app_name">CardiTrac</string>
     <string name="scegli_un_dispositivo_bluetooth">Scegli un dispositivo Bluetooth</string>
     <string name="sta_aspettando_i_dati">Sta aspettando i dati...</string>
 </resources>
