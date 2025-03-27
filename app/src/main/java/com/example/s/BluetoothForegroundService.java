@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.UUID;
 
 public class BluetoothForegroundService extends Service {
@@ -29,6 +30,7 @@ public class BluetoothForegroundService extends Service {
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothSocket bluetoothSocket;
     private InputStream inputStream;
+    private OutputStream outputStream;
     private String deviceAddress;
 
     @Override
@@ -108,6 +110,7 @@ public class BluetoothForegroundService extends Service {
             bluetoothSocket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
             bluetoothSocket.connect();
             inputStream = bluetoothSocket.getInputStream();
+            outputStream = bluetoothSocket.getOutputStream();
             listenForData();
         } catch (IOException e) {
             Log.e("BluetoothService", "Standard method failed, trying fallback...", e);
@@ -139,7 +142,7 @@ public class BluetoothForegroundService extends Service {
         Log.d("BluetoothService", "Listening for data...");
 
         StringBuilder messageBuffer = new StringBuilder();
-        byte[] buffer = new byte[1024];
+        byte[] buffer = new byte[4096];
         int bytes;
 
         while (true) {
@@ -160,6 +163,8 @@ public class BluetoothForegroundService extends Service {
                             messageBuffer.append(c);
                         }
                     }
+                    outputStream.write("*".getBytes());
+                    Log.d("BluetoothService", "Sent data to device");
                 }
             } catch (IOException e) {
                 Log.e("BluetoothService", "Error reading data!", e);

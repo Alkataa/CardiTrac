@@ -40,7 +40,7 @@ public class MainActivity extends ComponentActivity {
 
     private StringBuilder dataBuffer = new StringBuilder(); // Store received messages
 
-    private static final long updateDelayMs = 1000; // Delay in milliseconds (e.g., 1 second)
+    private static final long updateDelayMs = 5000; // Delay in milliseconds (e.g., 1 second)
     private long lastUpdateTime = 0;
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -125,7 +125,7 @@ public class MainActivity extends ComponentActivity {
             // TODO: Consider calling
             //    ActivityCompat#requestPermissions
             // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,cd
             //                                          int[] grantResults)
             // to handle the case where the user grants the permission. See the documentation
             // for ActivityCompat#requestPermissions for more details.
