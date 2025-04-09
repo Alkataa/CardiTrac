@@ -40,7 +40,7 @@ public class MainActivity extends ComponentActivity {
 
     private StringBuilder dataBuffer = new StringBuilder(); // Store received messages
 
-    private static final long updateDelayMs = 5000; // Delay in milliseconds (e.g., 1 second)
+    private static final long updateDelayMs = 1; // Delay in milliseconds (e.g., 1 second)
     private long lastUpdateTime = 0;
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -84,7 +84,7 @@ public class MainActivity extends ComponentActivity {
         listView.setOnItemClickListener((parent, view, position, id) -> {
             BluetoothDevice selectedDevice = pairedDevicesList.get(position);
             if (selectedDevice != null) {
-                String deviceInfo = "Connected to: " + selectedDevice.getName();
+                String deviceInfo = "Connecting to: " + selectedDevice.getName();
                 receivedDataTextView.setText(deviceInfo);  // Update UI to show connection
 
                 dataBuffer.setLength(0); // Clear previous data
@@ -194,7 +194,10 @@ public class MainActivity extends ComponentActivity {
                     Log.d("BluetoothDataReceiver", "Received Data: " + newData);
 
                     // Ensure UI update runs on main thread
-                    runOnUiThread(() -> receivedDataTextView.setText(dataBuffer.toString()));
+                    runOnUiThread(() -> {
+                        dataBuffer.append(newData).append("\n"); // Append with newline
+                        receivedDataTextView.setText(dataBuffer.toString()); // Update UI
+                    });
 
                     lastUpdateTime = currentTime;
                 }

@@ -69,10 +69,10 @@ public class BluetoothForegroundService extends Service {
                 .build();
     }
 
-    private void sendAlertNotification() {
+    private void sendAlertNotification(String alertText) {
         Notification alertNotification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Alert!")
-                .setContentText("Boolean value received as false!")
+                .setContentTitle("Attenzione!")
+                .setContentText(alertText)
                 .setSmallIcon(R.drawable.baseline_announcement_24)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .build();
@@ -81,18 +81,32 @@ public class BluetoothForegroundService extends Service {
         if (manager != null) {
             manager.notify(2, alertNotification);
         }
+
+        Log.d("BluetoothService", "Alert notification sent: " + alertText);
     }
 
     private void saveHeartbeat(String data) {
         long timestamp = System.currentTimeMillis();
-        String message = "Ricevuto: " + data + " a " + timestamp + "\n";
+        String message = "Frequenza cardiaca: " + data + " a " + timestamp;
 
-        Intent intent = new Intent("BluetoothDataUpdate");
-        intent.putExtra("data", message);
+        Log.d("BluetoothService", message);
+
+        Intent intent = new Intent("com.example.s.BLUETOOTH_DATA");
+        intent.putExtra("DATA", message);
         sendBroadcast(intent);
     }
 
+    private void saveHeartbeatToFile(int heartbeat) {
+        String filename = "heartbeat_data.txt";
+        String entry = System.currentTimeMillis() + "," + heartbeat + "\n"; // timestamp,heartbeat
 
+        try {
+            // Append mode
+            openFileOutput(filename, MODE_APPEND).write(entry.getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     @Nullable
     @Override
@@ -151,11 +165,38 @@ public class BluetoothForegroundService extends Service {
                 if (bytes > 0) {
                     String receivedData = new String(buffer, 0, bytes);
                     Log.d("BluetoothService", "Raw Data: " + receivedData);
-
+                    outputStream.write("*".getBytes());
+                    Log.d("BluetoothService", "Sent *");
                     for (char c : receivedData.toCharArray()) {
                         if (c == '\n') {
                             String fullMessage = messageBuffer.toString().trim();
                             Log.d("BluetoothService", "Complete Message: " + fullMessage);
+
+                            if (!fullMessage.isEmpty()) {
+                                char flag = fullMessage.charAt(0);
+                                String content = fullMessage.substring(1);
+
+                                switch (flag) {
+                                    case '@': // Heartbeat
+                                        try {
+                                            int heartbeat = Integer.parseInt(fullMessage.substring(1).trim());
+                                            saveHeartbeatToFile(heartbeat);
+                                            broadcastReceivedData("Frequenza cardiaca: " + heartbeat);
+                                        } catch (NumberFormatException e) {
+                                            Log.e("BluetoothService", "Formato messaggio invalido: " + fullMessage);
+                                        }
+                                        break;
+
+                                    case '#': // Alert
+                                        sendAlertNotification("Attenzione! Sei un coglione");
+                                        broadcastReceivedData("ALERT ricevuto!");
+                                        break;
+
+                                    default: // Unknown
+                                        broadcastReceivedData(fullMessage); // Optional fallback
+                                        break;
+                                }
+                            }
 
                             broadcastReceivedData(fullMessage);
                             messageBuffer.setLength(0);
@@ -163,8 +204,7 @@ public class BluetoothForegroundService extends Service {
                             messageBuffer.append(c);
                         }
                     }
-                    outputStream.write("*".getBytes());
-                    Log.d("BluetoothService", "Sent data to device");
+
                 }
             } catch (IOException e) {
                 Log.e("BluetoothService", "Error reading data!", e);
