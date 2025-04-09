@@ -95,6 +95,11 @@ public class MainActivity extends ComponentActivity {
             }
         });
 
+        findViewById(R.id.graph_button).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, GraphActivity.class);
+            startActivity(intent);
+        });
+
 
         IntentFilter filter = new IntentFilter("com.example.s.BLUETOOTH_DATA");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) // Android 13+

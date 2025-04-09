@@ -21,6 +21,12 @@
         android:divider="@android:color/darker_gray"
         android:dividerHeight="1dp" />
 
+    <Button
+        android:id="@+id/graph_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/vedi_grafico" />
+
     <TextView
         android:id="@+id/received_data"
         android:layout_width="match_parent"
