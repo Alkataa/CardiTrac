@@ -36,7 +36,7 @@ public class GraphActivity extends ComponentActivity {
         int index = 0;
 
         try {
-            FileInputStream fis = openFileInput("heartbeat_data.txt");
+            FileInputStream fis = openFileInput(BluetoothForegroundService.HEARTBEATS_FILE_NAME);
             BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
 
             String line;
@@ -45,16 +45,15 @@ public class GraphActivity extends ComponentActivity {
                     float value = Float.parseFloat(line.trim());
                     entries.add(new Entry(index++, value));
                 } catch (NumberFormatException e) {
-                    // Log the invalid data for debugging purposes
-                    e.printStackTrace();
-                    continue; // Skip this invalid line
+                    e.printStackTrace(); // Log invalid data
+                    continue; // Skip invalid lines
                 }
             }
             reader.close();
 
             if (entries.isEmpty()) {
-                Toast.makeText(this, "No heartbeat data found.", Toast.LENGTH_SHORT).show();
-                return; // Early exit if no valid data was found
+                Toast.makeText(this, "No valid heartbeat data found.", Toast.LENGTH_SHORT).show();
+                return;
             }
 
             // Customize the dataset and chart
@@ -62,15 +61,15 @@ public class GraphActivity extends ComponentActivity {
             dataSet.setLineWidth(2f);
             dataSet.setCircleRadius(3f);
             dataSet.setDrawValues(false);
-            dataSet.setColor(getResources().getColor(R.color.colorPrimary));  // Custom line color
+            dataSet.setColor(getResources().getColor(R.color.colorPrimary));
             dataSet.setCircleColor(getResources().getColor(R.color.colorPrimary));
 
             LineData lineData = new LineData(dataSet);
             lineChart.setData(lineData);
             lineChart.invalidate(); // Refresh the chart
-            lineChart.setTouchEnabled(true);  // Enable touch gestures for zoom and pan
-            lineChart.setDragEnabled(true);  // Enable drag gestures
-            lineChart.setScaleEnabled(true); // Enable zooming
+            lineChart.setTouchEnabled(true);
+            lineChart.setDragEnabled(true);
+            lineChart.setScaleEnabled(true);
 
         } catch (Exception e) {
             e.printStackTrace();

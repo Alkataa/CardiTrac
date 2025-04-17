@@ -7,25 +7,33 @@ import android.app.NotificationManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.Context;
 import android.content.Intent;
 import android.app.Service;
 import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresPermission;
 import androidx.core.app.NotificationCompat;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.UUID;
 
 public class BluetoothForegroundService extends Service {
     private static final String CHANNEL_ID = "BluetoothServiceChannel";
     private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    public static final String HEARTBEATS_FILE_NAME = "healthData.txt";
 
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothSocket bluetoothSocket;
@@ -46,6 +54,7 @@ public class BluetoothForegroundService extends Service {
 
         startForeground(1, createNotification());
         new Thread(this::connectToDevice).start();
+        exampleUsage();
         return START_STICKY;
     }
 
@@ -96,16 +105,53 @@ public class BluetoothForegroundService extends Service {
         sendBroadcast(intent);
     }
 
-    private void saveHeartbeatToFile(int heartbeat) {
-        String filename = "heartbeat_data.txt";
-        String entry = System.currentTimeMillis() + "," + heartbeat + "\n"; // timestamp,heartbeat
-
-        try {
-            // Append mode
-            openFileOutput(filename, MODE_APPEND).write(entry.getBytes());
+    private void saveHeartbeatsToFile(String data) {
+        try (FileOutputStream fos = openFileOutput(HEARTBEATS_FILE_NAME, Context.MODE_PRIVATE)) {
+            fos.write(data.getBytes());
+            Toast.makeText(this, "Health data saved successfully", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             e.printStackTrace();
+            Toast.makeText(this, "Failed to save heartbeats", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private String loadHeartbeatsFromFile() {
+        StringBuilder data = new StringBuilder();
+        try (FileInputStream fis = openFileInput(HEARTBEATS_FILE_NAME);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(fis))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                data.append(line).append("\n");
+            }
+            Toast.makeText(this, "Health data loaded successfully", Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Failed to load heartbeats", Toast.LENGTH_SHORT).show();
+        }
+        return data.toString();
+    }
+
+    private void verifyFileSaved(String fileName) {
+        File file = getFileStreamPath(fileName);
+        if (file.exists()) {
+            long fileSize = file.length();
+            Log.d("FileVerification", "File exists: " + file.getAbsolutePath() + ", Size: " + fileSize + " bytes");
+            Toast.makeText(this, "File saved successfully: " + fileName, Toast.LENGTH_SHORT).show();
+        } else {
+            Log.d("FileVerification", "File does not exist: " + fileName);
+            Toast.makeText(this, "File not found: " + fileName, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void exampleUsage() {
+        // Save heartbeats
+        String heartbeatsData = "72\n75\n78\n80"; // Example heartbeats data
+        saveHeartbeatsToFile(heartbeatsData);
+        verifyFileSaved(HEARTBEATS_FILE_NAME);
+
+        // Load heartbeats
+        String loadedData = loadHeartbeatsFromFile();
+        Log.d("Heartbeats", "Loaded Data: " + loadedData);
     }
 
     @Nullable
@@ -179,9 +225,9 @@ public class BluetoothForegroundService extends Service {
                                 switch (flag) {
                                     case '@': // Heartbeat
                                         try {
-                                            int heartbeat = Integer.parseInt(fullMessage.substring(1).trim());
-                                            saveHeartbeatToFile(heartbeat);
-                                            broadcastReceivedData("Frequenza cardiaca: " + heartbeat);
+                                            String healthData = fullMessage.substring(1).trim();
+                                            saveHeartbeatsToFile(healthData);
+                                            broadcastReceivedData("Frequenza cardiaca: " + healthData);
                                         } catch (NumberFormatException e) {
                                             Log.e("BluetoothService", "Formato messaggio invalido: " + fullMessage);
                                         }

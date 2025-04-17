@@ -29,6 +29,7 @@ import java.util.Set;
 public class MainActivity extends ComponentActivity {
 
     private static final int BLUETOOTH_PERMISSION_REQUEST = 1;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 2;
 
     private BluetoothAdapter bluetoothAdapter;
     private ListView listView;
@@ -49,6 +50,12 @@ public class MainActivity extends ComponentActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+            if (!hasNotificationPermission()) {
+                requestNotificationPermission();
+            }
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {  // Android 12+
             if (!hasBluetoothPermissions()) {
@@ -166,6 +173,22 @@ public class MainActivity extends ComponentActivity {
         setupBluetooth();
     }
 
+
+    private boolean hasNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true; // Below Android 13, no runtime permission required
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQUEST);
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -174,6 +197,10 @@ public class MainActivity extends ComponentActivity {
                 setupBluetooth(); // Continue if permission is granted
             } else {
                 Toast.makeText(this, "Bluetooth permissions required", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Notification permissions required for full functionality", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -227,4 +254,5 @@ public class MainActivity extends ComponentActivity {
         editor.apply();
     }
 
+    
 }
