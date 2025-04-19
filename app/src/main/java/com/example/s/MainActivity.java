@@ -13,26 +13,30 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.ArrayAdapter;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.ComponentActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.RequiresPermission;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.Set;
 
-public class MainActivity extends ComponentActivity {
+public class MainActivity extends ComponentActivity implements DeviceListAdapter.OnItemClickListener {
 
     private static final int BLUETOOTH_PERMISSION_REQUEST = 1;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 2;
 
     private BluetoothAdapter bluetoothAdapter;
-    private ListView listView;
+    private RecyclerView recyclerView;
+    private DeviceListAdapter adapter;
+
     private ArrayList<BluetoothDevice> pairedDevicesList = new ArrayList<>();
 
     private TextView receivedDataTextView;
@@ -41,8 +45,10 @@ public class MainActivity extends ComponentActivity {
 
     private StringBuilder dataBuffer = new StringBuilder(); // Store received messages
 
-    private static final long updateDelayMs = 1; // Delay in milliseconds (e.g., 1 second)
+    private static final long updateDelayMs = 1000; // Delay in milliseconds (e.g., 1 second)
     private long lastUpdateTime = 0;
+
+    private ActivityResultLauncher<String[]> bluetoothPermissionRequestLauncher;
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
@@ -58,6 +64,19 @@ public class MainActivity extends ComponentActivity {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {  // Android 12+
+            bluetoothPermissionRequestLauncher = registerForActivityResult(
+                    new ActivityResultContracts.RequestMultiplePermissions(),
+                    permissions -> {
+                        if (Boolean.TRUE.equals(permissions.getOrDefault(Manifest.permission.BLUETOOTH_CONNECT, false)) &&
+                                Boolean.TRUE.equals(permissions.getOrDefault(Manifest.permission.BLUETOOTH_SCAN, false))) {
+                            setupBluetooth();  // Permissions granted, set up Bluetooth
+                        } else {
+                            Toast.makeText(this, "Bluetooth permissions required", Toast.LENGTH_SHORT).show();
+                            // Consider disabling Bluetooth functionality or providing further guidance to the user.
+                        }
+                    }
+            );
+
             if (!hasBluetoothPermissions()) {
                 requestBluetoothPermissions();
             } else {
@@ -65,42 +84,16 @@ public class MainActivity extends ComponentActivity {
             }
         }
 
+        recyclerView = findViewById(R.id.device_recycler_view); // Ensure the ID matches the layout
+        if (recyclerView == null) {
+            Log.e("MainActivity", "RecyclerView is null. Check the layout file.");
+            return;
+        }
+        recyclerView.setLayoutManager(new LinearLayoutManager(this)); // Set layout manager for RecyclerView
         receivedDataTextView = findViewById(R.id.received_data);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        listView = findViewById(R.id.device_list);
-        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-        Log.d("Bluetooth", "Paired Devices Found: " + pairedDevices.size());
-
-        for (BluetoothDevice device : pairedDevices) {
-            Log.d("Bluetooth", "Device: " + device.getName() + " - " + device.getAddress());
-            pairedDevicesList.add(device);
-            deviceNamesList.add(device.getName() + "\n" + device.getAddress());
-        }
-
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1);
-        listView.setAdapter(adapter);
-        pairedDevicesList.clear();
-
-        for (BluetoothDevice device : pairedDevices) {
-            String deviceInfo = device.getName() + " (" + device.getAddress() + ")";
-            adapter.add(deviceInfo);
-            pairedDevicesList.add(device);  // Ensure this matches ListView items
-        }
-        adapter.notifyDataSetChanged();
-
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            BluetoothDevice selectedDevice = pairedDevicesList.get(position);
-            if (selectedDevice != null) {
-                String deviceInfo = "Connecting to: " + selectedDevice.getName();
-                receivedDataTextView.setText(deviceInfo);  // Update UI to show connection
-
-                dataBuffer.setLength(0); // Clear previous data
-                receivedDataTextView.append("\nWaiting for data...");
-
-                saveLastDevice(selectedDevice.getAddress());
-                startBluetoothService(selectedDevice.getAddress());
-            }
-        });
+        adapter = new DeviceListAdapter(pairedDevicesList, this); // Initialize adapter with the list and listener
+        recyclerView.setAdapter(adapter); // Set the adapter to the RecyclerView
 
         findViewById(R.id.graph_button).setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, GraphActivity.class);
@@ -113,6 +106,21 @@ public class MainActivity extends ComponentActivity {
             registerReceiver(bluetoothDataReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         else
             registerReceiver(bluetoothDataReceiver, filter);
+    }
+
+    @SuppressLint("MissingPermission")
+    @Override
+    public void onItemClick(BluetoothDevice device) {  // Listener implementation for clicks
+        if (device != null) {
+            String deviceInfo = "Connecting to: " + device.getName();
+            receivedDataTextView.setText(deviceInfo);
+
+            dataBuffer.setLength(0); // Clear previous data
+            receivedDataTextView.append("\nWaiting for data...");
+
+            saveLastDevice(device.getAddress());
+            startBluetoothService(device.getAddress());
+        }
     }
 
     @Override
@@ -131,29 +139,16 @@ public class MainActivity extends ComponentActivity {
         updateDeviceList();
     }
 
-    private void updateDeviceList() {
+    @SuppressLint("MissingPermission")
+    private void updateDeviceList() {  // Update for RecyclerView
         pairedDevicesList.clear();
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,cd
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
+            Log.e("MainActivity", "BLUETOOTH_CONNECT permission missing in updateDeviceList() even after checks. This shouldn't happen on Android 12+");
             return;
         }
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
         pairedDevicesList.addAll(pairedDevices);
-
-        ArrayList<String> deviceNamesList = new ArrayList<>();
-        for (BluetoothDevice device : pairedDevicesList) {
-            deviceNamesList.add(device.getName() + "\n" + device.getAddress());
-        }
-
-        // Update adapter
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, deviceNamesList);
-        listView.setAdapter(adapter);
+        adapter.notifyDataSetChanged(); // Notify adapter of the data change
     }
 
     private boolean hasBluetoothPermissions() {
@@ -166,11 +161,10 @@ public class MainActivity extends ComponentActivity {
 
     private void requestBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN},
-                    BLUETOOTH_PERMISSION_REQUEST);
+            bluetoothPermissionRequestLauncher.launch(new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN});
+        } else {
+            setupBluetooth(); // For devices below Android S, no runtime request needed.
         }
-        setupBluetooth();
     }
 
 
@@ -205,11 +199,48 @@ public class MainActivity extends ComponentActivity {
         }
     }
 
+    @SuppressLint("MissingPermission")  // Suppress the lint warning as we check the permission in setupBluetooth
     private void setupBluetooth() {
+        recyclerView = findViewById(R.id.device_recycler_view);
+        if (recyclerView == null) {
+            Log.e("MainActivity", "RecyclerView is null. Check the layout file.");
+            return;
+        }
+
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new DeviceListAdapter(pairedDevicesList, this);
+        recyclerView.setAdapter(adapter);
+
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter == null) {
             Toast.makeText(this, "Bluetooth not supported", Toast.LENGTH_SHORT).show();
+            return; // Exit if Bluetooth isn't supported.
         }
+
+        if (!hasBluetoothPermissions() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Should not reach here if the flow is correct, as requestBluetoothPermissions should have been called.
+            Log.e("MainActivity", "setupBluetooth called without permissions granted on Android 12+. This is unexpected.");
+            Toast.makeText(this, "Bluetooth permissions not granted.", Toast.LENGTH_SHORT).show();
+            return; // Exit or handle appropriately, e.g., disable Bluetooth features.
+        }
+        // From this point on, we know we have the necessary permissions (either granted or not needed).
+        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+        Log.d("Bluetooth", "Paired Devices Found: " + pairedDevices.size());
+
+        pairedDevicesList.clear();  // Clear the list before adding
+        deviceNamesList.clear();   // Clear this one too
+
+        for (BluetoothDevice device : pairedDevices) {
+            Log.d("Bluetooth", "Device: " + device.getName() + " - " + device.getAddress());
+            pairedDevicesList.add(device);
+            deviceNamesList.add(device.getName() + "\n" + device.getAddress());
+        }
+        if (pairedDevicesList.isEmpty()) {
+            Toast.makeText(this, "No paired devices found.", Toast.LENGTH_SHORT).show();
+        }
+
+        adapter = new DeviceListAdapter(pairedDevicesList, this); // Initialize adapter with the list and listener
+        recyclerView.setAdapter(adapter);
     }
 
     private final BroadcastReceiver bluetoothDataReceiver = new BroadcastReceiver() {
@@ -222,13 +253,12 @@ public class MainActivity extends ComponentActivity {
                 if (currentTime - lastUpdateTime >= updateDelayMs) {
                     dataBuffer.append(newData).append("\n");
 
-                    // Log data for debugging
+                    // Log data for debugging (keep this)
                     Log.d("BluetoothDataReceiver", "Received Data: " + newData);
 
                     // Ensure UI update runs on main thread
                     runOnUiThread(() -> {
-                        dataBuffer.append(newData).append("\n"); // Append with newline
-                        receivedDataTextView.setText(dataBuffer.toString()); // Update UI
+                        receivedDataTextView.setText(dataBuffer.toString()); // Update UI with the entire buffer
                     });
 
                     lastUpdateTime = currentTime;
