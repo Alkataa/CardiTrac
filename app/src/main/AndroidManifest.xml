@@ -40,7 +40,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".GraphActivity" />
+        <activity android:name=".GraphActivity"
+            android:exported="true"
+            android:theme="@style/Theme.S" />
     </application>
 
 </manifest>

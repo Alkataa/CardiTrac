@@ -1,21 +1,17 @@
 package com.example.s;
 
+import android.graphics.Color;
 import android.os.Bundle;
-import android.widget.Toast;
-
-import androidx.activity.ComponentActivity;
-
+import androidx.appcompat.app.AppCompatActivity;
 import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
-
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.List;
 
-public class GraphActivity extends ComponentActivity {
+public class GraphActivity extends AppCompatActivity {
 
     private LineChart lineChart;
 
@@ -24,56 +20,68 @@ public class GraphActivity extends ComponentActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_graph);
 
-        lineChart = findViewById(R.id.lineChart);
+        lineChart = findViewById(R.id.line_chart);
 
-        lineChart.setBackgroundColor(getResources().getColor(android.R.color.white));
+        // Get health data from intent
+        List<String[]> healthDataList = (List<String[]>) getIntent().getSerializableExtra("HEALTH_DATA");
 
-        loadGraphData();
+        if (healthDataList != null) {
+            setupGraph(healthDataList);
+        }
     }
 
-    private void loadGraphData() {
-        ArrayList<Entry> entries = new ArrayList<>();
-        int index = 0;
+    private void setupGraph(List<String[]> healthDataList) {
+        List<Entry> heartRateEntries = new ArrayList<>();
+        List<Entry> saturationEntries = new ArrayList<>();
+        List<Entry> temperatureEntries = new ArrayList<>();
 
-        try {
-            FileInputStream fis = openFileInput(BluetoothForegroundService.HEARTBEATS_FILE_NAME);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+        for (int i = 0; i < healthDataList.size(); i++) {
+            String[] data = healthDataList.get(i);
+            float heartRate = Float.parseFloat(data[0]);
+            float saturation = Float.parseFloat(data[1]);
+            float temperature = Float.parseFloat(data[2]);
 
-            String line;
-            while ((line = reader.readLine()) != null) {
-                try {
-                    float value = Float.parseFloat(line.trim());
-                    entries.add(new Entry(index++, value));
-                } catch (NumberFormatException e) {
-                    e.printStackTrace(); // Log invalid data
-                    continue; // Skip invalid lines
-                }
-            }
-            reader.close();
-
-            if (entries.isEmpty()) {
-                Toast.makeText(this, "No valid heartbeat data found.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            // Customize the dataset and chart
-            LineDataSet dataSet = new LineDataSet(entries, "Frequenza Cardiaca");
-            dataSet.setLineWidth(2f);
-            dataSet.setCircleRadius(3f);
-            dataSet.setDrawValues(false);
-            dataSet.setColor(getResources().getColor(R.color.colorPrimary));
-            dataSet.setCircleColor(getResources().getColor(R.color.colorPrimary));
-
-            LineData lineData = new LineData(dataSet);
-            lineChart.setData(lineData);
-            lineChart.invalidate(); // Refresh the chart
-            lineChart.setTouchEnabled(true);
-            lineChart.setDragEnabled(true);
-            lineChart.setScaleEnabled(true);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Error loading data", Toast.LENGTH_SHORT).show();
+            heartRateEntries.add(new Entry(i, heartRate));
+            saturationEntries.add(new Entry(i, saturation));
+            temperatureEntries.add(new Entry(i, temperature));
         }
+
+        LineDataSet heartRateDataSet = new LineDataSet(heartRateEntries, "Heart Rate");
+        heartRateDataSet.setColor(Color.RED);
+        heartRateDataSet.setLineWidth(2f);
+        heartRateDataSet.setCircleColor(Color.RED);
+        heartRateDataSet.setCircleRadius(4f);
+
+        LineDataSet saturationDataSet = new LineDataSet(saturationEntries, "Saturation");
+        saturationDataSet.setColor(Color.BLUE);
+        saturationDataSet.setLineWidth(2f);
+        saturationDataSet.setCircleColor(Color.BLUE);
+        saturationDataSet.setCircleRadius(4f);
+
+        LineDataSet temperatureDataSet = new LineDataSet(temperatureEntries, "Temperature");
+        temperatureDataSet.setColor(Color.GREEN);
+        temperatureDataSet.setLineWidth(2f);
+        temperatureDataSet.setCircleColor(Color.GREEN);
+        temperatureDataSet.setCircleRadius(4f);
+
+        LineData lineData = new LineData(heartRateDataSet, saturationDataSet, temperatureDataSet);
+        lineChart.setData(lineData);
+
+        lineChart.setBackgroundColor(Color.WHITE);
+        lineChart.getDescription().setText("Dati di salute");
+        lineChart.getDescription().setTextSize(12f);
+
+        XAxis xAxis = lineChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setTextColor(Color.BLACK);
+        xAxis.setGranularity(1f);
+
+        lineChart.getAxisLeft().setTextColor(Color.BLACK);
+        lineChart.getAxisLeft().setGranularity(1f);
+        lineChart.getAxisLeft().setAxisMinimum(0f);
+
+        lineChart.getAxisRight().setEnabled(false);
+        lineChart.getLegend().setTextColor(Color.BLACK);
+        lineChart.invalidate();
     }
 }

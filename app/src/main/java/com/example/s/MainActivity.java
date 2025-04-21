@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 public class MainActivity extends ComponentActivity implements DeviceListAdapter.OnItemClickListener {
@@ -41,11 +42,12 @@ public class MainActivity extends ComponentActivity implements DeviceListAdapter
 
     private TextView receivedDataTextView;
 
-    ArrayList<String> deviceNamesList = new ArrayList<>();
+    private ArrayList<String> deviceNamesList = new ArrayList<>();
+    private List<String[]> healthDataList = new ArrayList<>();
 
     private StringBuilder dataBuffer = new StringBuilder(); // Store received messages
 
-    private static final long updateDelayMs = 1000; // Delay in milliseconds (e.g., 1 second)
+    private static final long updateDelayMs = 1; // Delay in milliseconds (e.g., 1 second)
     private long lastUpdateTime = 0;
 
     private ActivityResultLauncher<String[]> bluetoothPermissionRequestLauncher;
@@ -96,10 +98,14 @@ public class MainActivity extends ComponentActivity implements DeviceListAdapter
         recyclerView.setAdapter(adapter); // Set the adapter to the RecyclerView
 
         findViewById(R.id.graph_button).setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, GraphActivity.class);
-            startActivity(intent);
+            if (!healthDataList.isEmpty()) {
+                Intent intent = new Intent(MainActivity.this, GraphActivity.class);
+                intent.putExtra("HEALTH_DATA", new ArrayList<>(healthDataList)); // Pass the health data
+                startActivity(intent);
+            } else {
+                Toast.makeText(this, "No health data available to display", Toast.LENGTH_SHORT).show();
+            }
         });
-
 
         IntentFilter filter = new IntentFilter("com.example.s.BLUETOOTH_DATA");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) // Android 13+
@@ -251,15 +257,30 @@ public class MainActivity extends ComponentActivity implements DeviceListAdapter
             if (newData != null) {
                 long currentTime = System.currentTimeMillis();
                 if (currentTime - lastUpdateTime >= updateDelayMs) {
-                    dataBuffer.append(newData).append("\n");
+                    // Parse the health data
+                    String[] healthData = newData.split(";");
+                    if (healthData.length == 4) {
+                        String frequenzaCardiaca = healthData[0];
+                        String saturazione = healthData[1];
+                        String temperatura = healthData[2];
+                        boolean notifica = Boolean.parseBoolean(healthData[3]);
 
-                    // Log data for debugging (keep this)
-                    Log.d("BluetoothDataReceiver", "Received Data: " + newData);
+                        // Add the parsed data to the list for graphing
+                        healthDataList.add(new String[]{frequenzaCardiaca, saturazione, temperatura, String.valueOf(notifica)});
 
-                    // Ensure UI update runs on main thread
-                    runOnUiThread(() -> {
-                        receivedDataTextView.setText(dataBuffer.toString()); // Update UI with the entire buffer
-                    });
+                        // Update the UI with the latest entry
+                        String latestEntry = "Frequenza Cardiaca: " + frequenzaCardiaca + "\n" +
+                                "Saturazione: " + saturazione + "\n" +
+                                "Temperatura: " + temperatura + "\n" +
+                                "Postura: " + (notifica ? "Correct" : "Incorrect");
+
+                        runOnUiThread(() -> receivedDataTextView.setText(latestEntry));
+
+                        // Save the latest entry for persistence
+                        saveHealthData(latestEntry);
+                    } else {
+                        Log.e("BluetoothDataReceiver", "Invalid data format: " + newData);
+                    }
 
                     lastUpdateTime = currentTime;
                 }
@@ -284,5 +305,15 @@ public class MainActivity extends ComponentActivity implements DeviceListAdapter
         editor.apply();
     }
 
-    
+    private void saveHealthData(String healthData) {
+        SharedPreferences prefs = getSharedPreferences("HealthDataPrefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString("LastHealthData", healthData);
+        editor.apply();
+    }
+
+    private String loadHealthData() {
+        SharedPreferences prefs = getSharedPreferences("HealthDataPrefs", MODE_PRIVATE);
+        return prefs.getString("LastHealthData", "No health data available");
+    }
 }
