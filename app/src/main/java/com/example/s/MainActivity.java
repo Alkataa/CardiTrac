@@ -13,6 +13,8 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,21 +24,19 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.RequiresPermission;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-public class MainActivity extends ComponentActivity implements DeviceListAdapter.OnItemClickListener {
+public class MainActivity extends ComponentActivity {
 
     private static final int BLUETOOTH_PERMISSION_REQUEST = 1;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 2;
 
     private BluetoothAdapter bluetoothAdapter;
-    private RecyclerView recyclerView;
-    private DeviceListAdapter adapter;
+    private ListView listView;
+    private ArrayAdapter<String> adapter;
 
     private ArrayList<BluetoothDevice> pairedDevicesList = new ArrayList<>();
 
@@ -86,16 +86,22 @@ public class MainActivity extends ComponentActivity implements DeviceListAdapter
             }
         }
 
-        recyclerView = findViewById(R.id.device_recycler_view); // Ensure the ID matches the layout
-        if (recyclerView == null) {
-            Log.e("MainActivity", "RecyclerView is null. Check the layout file.");
+        listView = findViewById(R.id.device_list_view); // Ensure the ID matches the layout
+        if (listView == null) {
+            Log.e("MainActivity", "ListView is null. Check the layout file.");
             return;
         }
-        recyclerView.setLayoutManager(new LinearLayoutManager(this)); // Set layout manager for RecyclerView
         receivedDataTextView = findViewById(R.id.received_data);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        adapter = new DeviceListAdapter(pairedDevicesList, this); // Initialize adapter with the list and listener
-        recyclerView.setAdapter(adapter); // Set the adapter to the RecyclerView
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, deviceNamesList); // Initialize adapter with the list and listener
+        listView.setAdapter(adapter); // Set the adapter to the ListView
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            BluetoothDevice device = pairedDevicesList.get(position);
+
+            if (device != null)
+                onItemClick(device); // Call the click listener
+        });
 
         findViewById(R.id.graph_button).setOnClickListener(v -> {
             if (!healthDataList.isEmpty()) {
@@ -114,8 +120,7 @@ public class MainActivity extends ComponentActivity implements DeviceListAdapter
             registerReceiver(bluetoothDataReceiver, filter);
     }
 
-    @SuppressLint("MissingPermission")
-    @Override
+    @SuppressLint("MissingPermission") // Suppress the lint warning as we check the permission in setupBluetooth
     public void onItemClick(BluetoothDevice device) {  // Listener implementation for clicks
         if (device != null) {
             String deviceInfo = "Connecting to: " + device.getName();
@@ -145,16 +150,22 @@ public class MainActivity extends ComponentActivity implements DeviceListAdapter
         updateDeviceList();
     }
 
-    @SuppressLint("MissingPermission")
-    private void updateDeviceList() {  // Update for RecyclerView
+    protected void updateDeviceList() {
         pairedDevicesList.clear();
+        deviceNamesList.clear();
+
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            Log.e("MainActivity", "BLUETOOTH_CONNECT permission missing in updateDeviceList() even after checks. This shouldn't happen on Android 12+");
+            Log.e("MainActivity", "BLUETOOTH_CONNECT permission missing in updateDeviceList()");
             return;
         }
+
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-        pairedDevicesList.addAll(pairedDevices);
-        adapter.notifyDataSetChanged(); // Notify adapter of the data change
+        for (BluetoothDevice device : pairedDevices) {
+            pairedDevicesList.add(device);
+            deviceNamesList.add(device.getName() + "\n" + device.getAddress());
+        }
+
+        adapter.notifyDataSetChanged();
     }
 
     private boolean hasBluetoothPermissions() {
@@ -207,15 +218,14 @@ public class MainActivity extends ComponentActivity implements DeviceListAdapter
 
     @SuppressLint("MissingPermission")  // Suppress the lint warning as we check the permission in setupBluetooth
     private void setupBluetooth() {
-        recyclerView = findViewById(R.id.device_recycler_view);
-        if (recyclerView == null) {
+        listView = findViewById(R.id.device_list_view);
+        if (listView == null) {
             Log.e("MainActivity", "RecyclerView is null. Check the layout file.");
             return;
         }
 
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new DeviceListAdapter(pairedDevicesList, this);
-        recyclerView.setAdapter(adapter);
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, deviceNamesList);
+        listView.setAdapter(adapter);
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter == null) {
@@ -245,8 +255,8 @@ public class MainActivity extends ComponentActivity implements DeviceListAdapter
             Toast.makeText(this, "No paired devices found.", Toast.LENGTH_SHORT).show();
         }
 
-        adapter = new DeviceListAdapter(pairedDevicesList, this); // Initialize adapter with the list and listener
-        recyclerView.setAdapter(adapter);
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, deviceNamesList); // Initialize adapter with the list and listener
+        listView.setAdapter(adapter);
     }
 
     private final BroadcastReceiver bluetoothDataReceiver = new BroadcastReceiver() {

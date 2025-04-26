@@ -214,13 +214,12 @@ public class BluetoothForegroundService extends Service {
                     outputStream.write("*".getBytes());
                     Log.d("BluetoothService", "Sent *");
                     for (char c : receivedData.toCharArray()) {
-                        if (c == '\n') {
+                        if (c == '%') {
                             String fullMessage = messageBuffer.toString().trim();
                             Log.d("BluetoothService", "Complete Message: " + fullMessage);
 
                             if (!fullMessage.isEmpty()) {
                                 char flag = fullMessage.charAt(0);
-                                String content = fullMessage.substring(1);
 
                                 switch (flag) {
                                     case '@': // Heartbeat
