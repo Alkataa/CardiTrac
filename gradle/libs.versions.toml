@@ -1,6 +1,7 @@
 [versions]
 agp = "8.9.0"
 appcompat = "1.7.0"
+cardview = "1.0.0"
 constraintlayout = "2.2.1"
 kotlin = "2.0.21"
 coreKtx = "1.15.0"
@@ -15,6 +16,7 @@ recyclerview = "1.4.0"
 
 [libraries]
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-cardview = { module = "androidx.cardview:cardview", version.ref = "cardview" }
 androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

@@ -29,7 +29,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/toolbar">
 
-        <!-- RecyclerView for Devices -->
+        <!-- ListView for Devices -->
         <ListView
             android:id="@+id/device_list_view"
             android:layout_width="match_parent"
@@ -43,18 +43,11 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="2"
+            android:background="@drawable/rounded_background"
+            android:textAlignment="center"
             android:padding="8dp"
             android:textSize="16sp"
             android:scrollbars="vertical" />
-
-        <TextView
-            android:id="@+id/health_data"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:textSize="16sp"
-            android:scrollbars="vertical"
-            android:text="Le rilevazioni saranno mostrati a breve" />
 
     </LinearLayout>
 

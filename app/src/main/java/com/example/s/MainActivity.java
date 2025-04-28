@@ -148,6 +148,11 @@ public class MainActivity extends ComponentActivity {
     protected void onResume() {
         super.onResume();
         updateDeviceList();
+
+        String lastHealthData = loadHealthData();
+        if (receivedDataTextView != null) {
+            receivedDataTextView.setText(lastHealthData);
+        }
     }
 
     protected void updateDeviceList() {
@@ -273,7 +278,7 @@ public class MainActivity extends ComponentActivity {
                         String frequenzaCardiaca = healthData[0];
                         String saturazione = healthData[1];
                         String temperatura = healthData[2];
-                        boolean notifica = Boolean.parseBoolean(healthData[3]);
+                        boolean notifica = healthData[3].equals("1");
 
                         // Add the parsed data to the list for graphing
                         healthDataList.add(new String[]{frequenzaCardiaca, saturazione, temperatura, String.valueOf(notifica)});
@@ -282,16 +287,13 @@ public class MainActivity extends ComponentActivity {
                         String latestEntry = "Frequenza Cardiaca: " + frequenzaCardiaca + "\n" +
                                 "Saturazione: " + saturazione + "\n" +
                                 "Temperatura: " + temperatura + "\n" +
-                                "Postura: " + (notifica ? "Correct" : "Incorrect");
-
-                        runOnUiThread(() -> receivedDataTextView.setText(latestEntry));
+                                "Postura: " + (notifica ? "Corretta" : "Incorretta");
+                        receivedDataTextView.setText(latestEntry);
 
                         // Save the latest entry for persistence
                         saveHealthData(latestEntry);
-                    } else {
+                    } else
                         Log.e("BluetoothDataReceiver", "Invalid data format: " + newData);
-                    }
-
                     lastUpdateTime = currentTime;
                 }
             } else {
@@ -312,14 +314,22 @@ public class MainActivity extends ComponentActivity {
         SharedPreferences prefs = getSharedPreferences("BluetoothPrefs", MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString("LastDevice", deviceAddress);
-        editor.apply();
+        boolean success = editor.commit();
+        if (success)
+            Log.d("MainActivity", "Last device saved successfully.");
+        else
+            Log.e("MainActivity", "Failed to save last device.");
     }
 
     private void saveHealthData(String healthData) {
         SharedPreferences prefs = getSharedPreferences("HealthDataPrefs", MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString("LastHealthData", healthData);
-        editor.apply();
+        boolean success = editor.commit();
+        if (success)
+            Log.d("MainActivity", "Health data saved successfully.");
+        else
+            Log.e("MainActivity", "Failed to save health data.");
     }
 
     private String loadHealthData() {
