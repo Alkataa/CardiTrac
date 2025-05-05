@@ -213,47 +213,28 @@ public class BluetoothForegroundService extends Service {
                     Log.d("BluetoothService", "Raw Data: " + receivedData);
                     outputStream.write("*".getBytes());
                     Log.d("BluetoothService", "Sent *");
+
                     for (char c : receivedData.toCharArray()) {
                         if (c == '%') {
                             String fullMessage = messageBuffer.toString().trim();
                             Log.d("BluetoothService", "Complete Message: " + fullMessage);
 
                             if (!fullMessage.isEmpty()) {
-                                char flag = fullMessage.charAt(0);
+                                int isNotifica = Integer.parseInt(String.valueOf(fullMessage.charAt(fullMessage.length() - 3)));
 
-                                switch (flag) {
-                                    case '@': // Heartbeat
-                                        try {
-                                            String healthData = fullMessage.substring(1).trim();
-                                            saveHeartbeatsToFile(healthData);
-                                            broadcastReceivedData("Frequenza cardiaca: " + healthData);
-                                        } catch (NumberFormatException e) {
-                                            Log.e("BluetoothService", "Formato messaggio invalido: " + fullMessage);
-                                        }
-                                        break;
+                                if (isNotifica == 1)
+                                    sendAlertNotification("Postura errata");
 
-                                    case '#': // Alert
-                                        sendAlertNotification("Attenzione! Sei un coglione");
-                                        broadcastReceivedData("ALERT ricevuto!");
-                                        break;
-
-                                    default: // Unknown
-                                        broadcastReceivedData(fullMessage); // Optional fallback
-                                        break;
-                                }
+                                broadcastReceivedData(fullMessage);
+                                messageBuffer.setLength(0);
+                            } else {
+                                messageBuffer.append(c);
                             }
-
-                            broadcastReceivedData(fullMessage);
-                            messageBuffer.setLength(0);
-                        } else {
-                            messageBuffer.append(c);
                         }
                     }
-
                 }
             } catch (IOException e) {
-                Log.e("BluetoothService", "Error reading data!", e);
-                break;
+                throw new RuntimeException(e);
             }
         }
     }
