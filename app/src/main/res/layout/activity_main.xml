@@ -46,7 +46,7 @@
             android:background="@drawable/rounded_background"
             android:textAlignment="center"
             android:padding="24dp"
-            android:textSize="16sp"
+            android:textSize="48sp"
             android:scrollbars="vertical" />
 
     </LinearLayout>
