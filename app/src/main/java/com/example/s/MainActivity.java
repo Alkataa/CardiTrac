@@ -268,7 +268,7 @@ public class MainActivity extends ComponentActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             String newData = intent.getStringExtra("DATA");
-            Log.d("BluetoothDataReceiver", "Received data in main: " + newData);
+            Log.d("MainActivity", "Received data in main: " + newData);
 
             if (newData != null) {
                 long currentTime = System.currentTimeMillis();
@@ -282,7 +282,7 @@ public class MainActivity extends ComponentActivity {
                         boolean notifica = healthData[3].equals("1");
 
                         // Add the parsed data to the list for graphing
-                        healthDataList.add(new String[]{frequenzaCardiaca, saturazione, temperatura});
+                        healthDataList.add(new String[]{frequenzaCardiaca, saturazione, temperatura, String.valueOf(notifica)});
 
                         // Update the UI with the latest entry
                         String latestEntry = "Frequenza Cardiaca: " + frequenzaCardiaca + "\n" +

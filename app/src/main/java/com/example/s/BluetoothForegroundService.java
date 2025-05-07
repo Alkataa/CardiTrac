@@ -193,8 +193,10 @@ public class BluetoothForegroundService extends Service {
 
     private void broadcastReceivedData(String data) {
         Intent intent = new Intent("com.example.s.BLUETOOTH_DATA");
+        intent.setPackage(getPackageName());
         intent.putExtra("DATA", data); // Use lowercase key: "data"
         sendBroadcast(intent);
+        Log.d("BluetoothService", "Broadcasted data: " + data);
     }
 
 
@@ -213,28 +215,32 @@ public class BluetoothForegroundService extends Service {
                     Log.d("BluetoothService", "Raw Data: " + receivedData);
                     outputStream.write("*".getBytes());
                     Log.d("BluetoothService", "Sent *");
-
                     for (char c : receivedData.toCharArray()) {
                         if (c == '%') {
                             String fullMessage = messageBuffer.toString().trim();
                             Log.d("BluetoothService", "Complete Message: " + fullMessage);
 
                             if (!fullMessage.isEmpty()) {
-                                int isNotifica = Integer.parseInt(String.valueOf(fullMessage.charAt(fullMessage.length() - 3)));
+                                char flag = fullMessage.charAt(fullMessage.length() - 2);
 
-                                if (isNotifica == 1)
-                                    sendAlertNotification("Postura errata");
 
-                                broadcastReceivedData(fullMessage);
-                                messageBuffer.setLength(0);
-                            } else {
-                                messageBuffer.append(c);
+                                    if (flag == '1') {
+                                        sendAlertNotification("Attenzione! Postura errata!");
+                                        Log.d("BluetoothService", "Alert received!");
+                                }
                             }
+
+                            broadcastReceivedData(fullMessage);
+                            messageBuffer.setLength(0);
+                        } else {
+                            messageBuffer.append(c);
                         }
                     }
+
                 }
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                Log.e("BluetoothService", "Error reading data!", e);
+                break;
             }
         }
     }
