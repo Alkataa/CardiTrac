@@ -46,7 +46,8 @@
             android:background="@drawable/rounded_background"
             android:textAlignment="center"
             android:padding="24dp"
-            android:textSize="48sp"
+            android:shadowRadius="28"
+            android:textSize="24sp"
             android:scrollbars="vertical" />
 
     </LinearLayout>
@@ -56,6 +57,7 @@
         android:id="@+id/graph_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:shadowRadius="28"
         android:text="@string/vedi_grafico"
         android:backgroundTint="?attr/colorPrimary"
         android:textColor="@android:color/white"

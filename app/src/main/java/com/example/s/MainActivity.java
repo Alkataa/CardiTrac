@@ -153,6 +153,13 @@ public class MainActivity extends ComponentActivity {
         if (receivedDataTextView != null) {
             receivedDataTextView.setText(lastHealthData);
         }
+
+        // Attempt to reconnect to the last known device
+        String lastDeviceAddress = loadLastDevice();
+        if (lastDeviceAddress != null && !lastDeviceAddress.isEmpty()) {
+            Log.d("MainActivity", "Attempting to reconnect to last device: " + lastDeviceAddress);
+            startBluetoothService(lastDeviceAddress);
+        }
     }
 
     protected void updateDeviceList() {
@@ -336,5 +343,10 @@ public class MainActivity extends ComponentActivity {
     private String loadHealthData() {
         SharedPreferences prefs = getSharedPreferences("HealthDataPrefs", MODE_PRIVATE);
         return prefs.getString("LastHealthData", "No health data available");
+    }
+
+    private String loadLastDevice() {
+        SharedPreferences prefs = getSharedPreferences("BluetoothPrefs", MODE_PRIVATE);
+        return prefs.getString("LastDevice", null);
     }
 }

@@ -57,19 +57,19 @@ public class GraphActivity extends AppCompatActivity {
             temperatureEntries.add(new Entry(i, temperature));
         }
 
-        heartRateDataSet = new LineDataSet(heartRateEntries, "Heart Rate");
+        heartRateDataSet = new LineDataSet(heartRateEntries, "Frequenza Cardiaca");
         heartRateDataSet.setColor(Color.RED);
         heartRateDataSet.setLineWidth(2f);
         heartRateDataSet.setCircleColor(Color.RED);
         heartRateDataSet.setCircleRadius(4f);
 
-        saturationDataSet = new LineDataSet(saturationEntries, "Saturation");
+        saturationDataSet = new LineDataSet(saturationEntries, "Saturazione");
         saturationDataSet.setColor(Color.BLUE);
         saturationDataSet.setLineWidth(2f);
         saturationDataSet.setCircleColor(Color.BLUE);
         saturationDataSet.setCircleRadius(4f);
 
-        temperatureDataSet = new LineDataSet(temperatureEntries, "Temperature");
+        temperatureDataSet = new LineDataSet(temperatureEntries, "Temperatura");
         temperatureDataSet.setColor(Color.GREEN);
         temperatureDataSet.setLineWidth(2f);
         temperatureDataSet.setCircleColor(Color.GREEN);
