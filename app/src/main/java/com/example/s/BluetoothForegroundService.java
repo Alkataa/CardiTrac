@@ -99,6 +99,7 @@ public class BluetoothForegroundService extends Service {
                 .setContentText(alertText)
                 .setSmallIcon(R.drawable.baseline_announcement_24)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setVibrate(new long[]{0, 1000, 200, 500})
                 .build();
 
         NotificationManager manager = getSystemService(NotificationManager.class);
