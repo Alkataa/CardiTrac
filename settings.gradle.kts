@@ -21,6 +21,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CardiTrac"
+rootProject.name = "SpineMate"
 include(":app")
  
