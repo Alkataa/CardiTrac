@@ -295,7 +295,7 @@ public class MainActivity extends ComponentActivity {
                         String latestEntry = "Frequenza Cardiaca: " + frequenzaCardiaca + "\n" +
                                 "Saturazione: " + saturazione + "\n" +
                                 "Temperatura: " + temperatura + "\n" +
-                                "Postura: " + (notifica ? "Corretta" : "Incorretta");
+                                "Postura: " + (notifica ? "Incorretta" : "Corretta");
                         receivedDataTextView.setText(latestEntry);
 
                         // Save the latest entry for persistence
