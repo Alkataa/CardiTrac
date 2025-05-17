@@ -288,6 +288,12 @@ public class MainActivity extends ComponentActivity {
                         String temperatura = healthData[2];
                         boolean notifica = healthData[3].equals("1");
 
+                        // Filter: skip if temperature is 8 (calibration value) or heart rate/saturation are 0
+                        if (temperatura.equals("8") || frequenzaCardiaca.equals("0") || saturazione.equals("0")) {
+                            Log.d("MainActivity", "Filtered out data with temp=8 or freq/sat=0");
+                            return;
+                        }
+
                         // Add the parsed data to the list for graphing
                         healthDataList.add(new String[]{frequenzaCardiaca, saturazione, temperatura, String.valueOf(notifica)});
 

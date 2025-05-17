@@ -309,6 +309,18 @@ public class BluetoothForegroundService extends Service {
                             Log.d("BluetoothService", "Complete Message: " + fullMessage);
 
                             if (!fullMessage.isEmpty()) {
+                                // Filter: skip if temperature is 8 (calibration value) or heart rate/saturation are 0
+                                String[] parts = fullMessage.split(";");
+                                if (parts.length == 4) {
+                                    String frequenzaCardiaca = parts[0];
+                                    String saturazione = parts[1];
+                                    String temperatura = parts[2];
+                                    if (temperatura.equals("8") || frequenzaCardiaca.equals("0") || saturazione.equals("0")) {
+                                        Log.d("BluetoothService", "Filtered out message with temp=8 or freq/sat=0");
+                                        messageBuffer.setLength(0);
+                                        continue;
+                                    }
+                                }
                                 char flag = fullMessage.charAt(fullMessage.length() - 2);
 
                                 if (flag == '1') {
