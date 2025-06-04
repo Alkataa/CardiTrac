@@ -28,7 +28,9 @@ import androidx.core.content.ContextCompat;
 import org.json.JSONArray;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -368,7 +370,7 @@ public class MainActivity extends ComponentActivity {
         }
         try (FileOutputStream fos = openFileOutput(HEALTH_DATA_FILE, MODE_PRIVATE)) {
             fos.write(jsonArray.toString().getBytes());
-        } catch (Exception e) {
+        } catch (IOException e) {
             Log.e("MainActivity", "Failed to save health data list", e);
         }
     }
@@ -389,8 +391,10 @@ public class MainActivity extends ComponentActivity {
                 }
                 list.add(arr);
             }
-        } catch (Exception e) {
-            Log.d("MainActivity", "No previous health data list found or failed to load.");
+        } catch (FileNotFoundException e) {
+            Log.d("MainActivity", "No previous health data list found.");
+        } catch (IOException | org.json.JSONException e) {
+            Log.e("MainActivity", "Failed to load health data list", e);
         }
         return list;
     }
