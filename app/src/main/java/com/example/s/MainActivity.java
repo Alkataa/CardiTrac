@@ -25,6 +25,10 @@ import androidx.annotation.RequiresPermission;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.json.JSONArray;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -45,10 +49,7 @@ public class MainActivity extends ComponentActivity {
     private ArrayList<String> deviceNamesList = new ArrayList<>();
     private List<String[]> healthDataList = new ArrayList<>();
 
-    private StringBuilder dataBuffer = new StringBuilder(); // Store received messages
-
-    private static final long updateDelayMs = 1; // Delay in milliseconds (e.g., 1 second)
-    private long lastUpdateTime = 0;
+    private static final String HEALTH_DATA_FILE = "health_data.json";
 
     private ActivityResultLauncher<String[]> bluetoothPermissionRequestLauncher;
 
@@ -118,6 +119,9 @@ public class MainActivity extends ComponentActivity {
             registerReceiver(bluetoothDataReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         else
             registerReceiver(bluetoothDataReceiver, filter);
+
+        // Load health data list from file
+        healthDataList = loadHealthDataList();
     }
 
     @SuppressLint("MissingPermission") // Suppress the lint warning as we check the permission in setupBluetooth
@@ -125,9 +129,6 @@ public class MainActivity extends ComponentActivity {
         if (device != null) {
             String deviceInfo = "Connecting to: " + device.getName();
             receivedDataTextView.setText(deviceInfo);
-
-            dataBuffer.setLength(0); // Clear previous data
-            receivedDataTextView.append("\nWaiting for data...");
 
             saveLastDevice(device.getAddress());
             startBluetoothService(device.getAddress());
@@ -153,6 +154,9 @@ public class MainActivity extends ComponentActivity {
         if (receivedDataTextView != null) {
             receivedDataTextView.setText(lastHealthData);
         }
+
+        // Reload health data list from file
+        healthDataList = loadHealthDataList();
 
         // Attempt to reconnect to the last known device
         String lastDeviceAddress = loadLastDevice();
@@ -278,38 +282,36 @@ public class MainActivity extends ComponentActivity {
             Log.d("MainActivity", "Received data in main: " + newData);
 
             if (newData != null) {
-                long currentTime = System.currentTimeMillis();
-                if (currentTime - lastUpdateTime >= updateDelayMs) {
-                    // Parse the health data
-                    String[] healthData = newData.split(";");
-                    if (healthData.length == 4) {
-                        String frequenzaCardiaca = healthData[0];
-                        String saturazione = healthData[1];
-                        String temperatura = healthData[2];
-                        boolean notifica = healthData[3].equals("1");
+                // Parse the health data
+                String[] healthData = newData.split(";");
+                if (healthData.length == 4) {
+                    String frequenzaCardiaca = healthData[0];
+                    String saturazione = healthData[1];
+                    String temperatura = healthData[2];
+                    boolean notifica = healthData[3].equals("1");
 
-                        // Filter: skip if temperature is 8 (calibration value) or heart rate/saturation are 0
-                        if (temperatura.equals("8") || frequenzaCardiaca.equals("0") || saturazione.equals("0")) {
-                            Log.d("MainActivity", "Filtered out data with temp=8 or freq/sat=0");
-                            return;
-                        }
+                    if (Integer.parseInt(temperatura) <= 30 || Integer.parseInt(frequenzaCardiaca) <= 30 || Integer.parseInt(saturazione) <= 30) {
+                        Log.d("MainActivity", "Filtered out data");
+                        return;
+                    }
 
-                        // Add the parsed data to the list for graphing
-                        healthDataList.add(new String[]{frequenzaCardiaca, saturazione, temperatura, String.valueOf(notifica)});
+                    // Add the parsed data to the list for graphing
+                    healthDataList.add(new String[]{frequenzaCardiaca, saturazione, temperatura, String.valueOf(notifica)});
 
-                        // Update the UI with the latest entry
-                        String latestEntry = "Frequenza Cardiaca: " + frequenzaCardiaca + "\n" +
-                                "Saturazione: " + saturazione + "\n" +
-                                "Temperatura: " + temperatura + "\n" +
-                                "Postura: " + (notifica ? "Incorretta" : "Corretta");
-                        receivedDataTextView.setText(latestEntry);
+                    // Save the updated health data list to file
+                    saveHealthDataList(healthDataList);
 
-                        // Save the latest entry for persistence
-                        saveHealthData(latestEntry);
-                    } else
-                        Log.e("BluetoothDataReceiver", "Invalid data format: " + newData);
-                    lastUpdateTime = currentTime;
-                }
+                    // Update the UI with the latest entry
+                    String latestEntry = "Frequenza Cardiaca: " + frequenzaCardiaca + "\n" +
+                            "Saturazione: " + saturazione + "\n" +
+                            "Temperatura: " + temperatura + "\n" +
+                            "Postura: " + (notifica ? "Incorretta" : "Corretta");
+                    receivedDataTextView.setText(latestEntry);
+
+                    // Save the latest entry for persistence
+                    saveHealthData(latestEntry);
+                } else
+                    Log.e("BluetoothDataReceiver", "Invalid data format: " + newData);
             } else {
                 Log.e("BluetoothDataReceiver", "Received null data!");
             }
@@ -354,5 +356,42 @@ public class MainActivity extends ComponentActivity {
     private String loadLastDevice() {
         SharedPreferences prefs = getSharedPreferences("BluetoothPrefs", MODE_PRIVATE);
         return prefs.getString("LastDevice", null);
+    }
+
+    // Save the health data list to a file as JSON
+    private void saveHealthDataList(List<String[]> dataList) {
+        JSONArray jsonArray = new JSONArray();
+        for (String[] arr : dataList) {
+            JSONArray inner = new JSONArray();
+            for (String s : arr) inner.put(s);
+            jsonArray.put(inner);
+        }
+        try (FileOutputStream fos = openFileOutput(HEALTH_DATA_FILE, MODE_PRIVATE)) {
+            fos.write(jsonArray.toString().getBytes());
+        } catch (Exception e) {
+            Log.e("MainActivity", "Failed to save health data list", e);
+        }
+    }
+
+    // Load the health data list from a file
+    private List<String[]> loadHealthDataList() {
+        List<String[]> list = new ArrayList<>();
+        try (FileInputStream fis = openFileInput(HEALTH_DATA_FILE)) {
+            byte[] bytes = new byte[fis.available()];
+            fis.read(bytes);
+            String json = new String(bytes);
+            JSONArray jsonArray = new JSONArray(json);
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONArray inner = jsonArray.getJSONArray(i);
+                String[] arr = new String[inner.length()];
+                for (int j = 0; j < inner.length(); j++) {
+                    arr[j] = inner.getString(j);
+                }
+                list.add(arr);
+            }
+        } catch (Exception e) {
+            Log.d("MainActivity", "No previous health data list found or failed to load.");
+        }
+        return list;
     }
 }
